@@ -5,8 +5,9 @@ One Overpass read of every named business in Bezirk Neukölln, chains dropped (a
 each row tagged with a sector, the offer that fits it, and the gap OSM shows (no website, no
 hours). Nothing is contacted. Stdlib only; writes a CSV that opens in Numbers or Excel.
 
-    python3 neukoelln_list.py            # uses the cache after the first fetch
-    python3 neukoelln_list.py --force    # fresh read from Overpass
+    python3 neukoelln_list.py                  # Neukölln, cached after the first fetch
+    python3 neukoelln_list.py --area berlin    # the whole city (admin_level 4), bigger and slower
+    python3 neukoelln_list.py --force          # fresh read from Overpass
 """
 
 import csv
@@ -15,11 +16,12 @@ import sys
 import time
 from pathlib import Path
 
-from sources.osm import fetch_overpass, permalink
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # run from anywhere, python -I included
+from sources.osm import fetch_overpass, permalink  # noqa: E402
 
 QUERY = """
 [out:json][timeout:300];
-area["name"="Neukölln"]["boundary"="administrative"]["admin_level"="9"]->.b;
+area["name"="{area}"]["boundary"="administrative"]["admin_level"="{level}"]->.b;
 (
   nwr["name"]["shop"](area.b);
   nwr["name"]["craft"](area.b);
@@ -123,8 +125,20 @@ def safe_cell(v) -> str:
     return "'" + t if t[:1] in ("=", "+", "-", "@", "\t", "\r") else t
 
 
+AREAS = {"neukoelln": ("Neukölln", 9), "berlin": ("Berlin", 4)}  # Bezirk is level 9, Land is level 4
+
+
+def area_from_argv() -> tuple[str, str, int]:
+    """--area neukoelln (default) or --area berlin; returns (slug, OSM name, admin_level)."""
+    slug = sys.argv[sys.argv.index("--area") + 1].lower() if "--area" in sys.argv else "neukoelln"
+    name, level = AREAS.get(slug, (slug.title(), 9))
+    return slug, name, level
+
+
 def main() -> None:
-    data = fetch_overpass(QUERY, "osm-neukoelln-smallbiz", force="--force" in sys.argv)
+    slug, name, level = area_from_argv()
+    query = QUERY.replace("{area}", name).replace("{level}", str(level))
+    data = fetch_overpass(query, f"osm-{slug}-smallbiz", force="--force" in sys.argv)
     seen, rows = set(), []
     for el in data.get("elements", []):
         r = row(el)
@@ -133,7 +147,7 @@ def main() -> None:
             seen.add(key)
             rows.append(r)
     rows.sort(key=lambda r: (-r["priority"], r["sector"], r["name"].lower()))
-    out = Path(__file__).resolve().parent / "out" / f"neukoelln-smallbiz-{time.strftime("%Y-%m-%d")}.csv"
+    out = Path(__file__).resolve().parent / "out" / f"{slug}-smallbiz-{time.strftime("%Y-%m-%d")}.csv"
     if not rows:
         sys.exit("no rows: Overpass returned nothing usable, retry with --force")
     with out.open("w", newline="", encoding="utf-8-sig") as f:
