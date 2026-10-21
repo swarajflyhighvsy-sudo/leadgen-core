@@ -113,6 +113,13 @@ def row(el: dict) -> dict | None:
     }
 
 
+def safe_cell(v) -> str:
+    """OSM text goes into a spreadsheet: no long dashes, and no cell that Excel would run as a
+    formula (a name starting with =, +, -, @, tab or CR gets a leading apostrophe)."""
+    t = str(v).replace("\u2014", "-").replace("\u2013", "-")
+    return "'" + t if t[:1] in ("=", "+", "-", "@", "\t", "\r") else t
+
+
 def main() -> None:
     data = fetch_overpass(QUERY, "osm-neukoelln-smallbiz", force="--force" in sys.argv)
     seen, rows = set(), []
@@ -128,8 +135,7 @@ def main() -> None:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
         # OSM names can carry long dashes; nothing handed to Sj may (CLAUDE.md writing rules).
-        w.writerows({k: str(v).replace("\u2014", "-").replace("\u2013", "-") for k, v in r.items()}
-                    for r in rows)
+        w.writerows({k: safe_cell(v) for k, v in r.items()} for r in rows)
     print(f"elements {len(data.get('elements', []))}, independent businesses {len(rows)}")
     by = {}
     for r in rows:
@@ -140,7 +146,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # Self-check: chains drop, a cafe with no website gets the website-first offer.
+    # Self-check: chains drop, a cafe with no website gets the website-first offer, formulas are inert.
+    assert safe_cell("=1+1") == "'=1+1" and safe_cell("Caf\u00e9 \u2014 Bar") == "Caf\u00e9 - Bar" and safe_cell(5) == "5"
     assert row({"tags": {"name": "X", "shop": "bakery", "brand": "Y"}}) is None
     r = row({"type": "node", "id": 1, "tags": {"name": "Cafe A", "amenity": "cafe", "phone": "1"}})
     assert r["sector"] == "Food & drink" and r["priority"] == 4 and r["offer"].startswith("Simple website")
