@@ -150,6 +150,7 @@ def main() -> None:
     out = Path(__file__).resolve().parent / "out" / f"{slug}-smallbiz-{time.strftime("%Y-%m-%d")}.csv"
     if not rows:
         sys.exit("no rows: Overpass returned nothing usable, retry with --force")
+    out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
