@@ -1,5 +1,5 @@
 """
-OpenStreetMap source for PROMPT 1.
+OpenStreetMap source: every named business in a district, with a stable object id.
 
 Why OSM and not a language model: a model asked to name companies will produce plausible
 names, some of which do not exist, and nothing downstream can tell the difference. OSM rows are real surveyed places, each with
@@ -27,7 +27,7 @@ CACHE_DIR = Path(__file__).resolve().parent.parent / "cache"
 # For an OSM node/way/relation that page is the object's own permalink.
 OSM_PERMALINK = "https://www.openstreetmap.org/{kind}/{oid}"
 
-# Second source for PROMPT 1: Berlin offices whose daily work is document and data heavy.
+# Office query: businesses whose daily work is document and data heavy.
 # Only used when the job-post source runs short, and every row says it has no trigger.
 QUERY_OFFICES_BERLIN = """
 [out:json][timeout:300];
@@ -44,9 +44,8 @@ def _cache_path(name: str) -> Path:
 
 def fetch_overpass(query: str, cache_name: str, force: bool = False) -> dict:
     """
-    Fetch and cache. The cache is not an optimisation: Schedule A makes milestone
-    acceptance evidence-based, so we keep the raw bytes we actually read, with the
-    timestamp we read them at.
+    Fetch and cache. The cache is not an optimisation: every row has to trace back to bytes
+    that were actually read, so the raw response is kept with the time it was read.
     """
     raw_path = _cache_path(cache_name + ".json")
     meta_path = _cache_path(cache_name + ".meta.json")
@@ -98,7 +97,7 @@ def permalink(element: dict) -> str:
 
 
 def offices_berlin(force: bool = False) -> list[dict]:
-    """Raw OSM elements for the office query above. Filtering is PROMPT 1's job."""
+    """Raw OSM elements for the office query above. Filtering happens in the caller."""
     data = fetch_overpass(QUERY_OFFICES_BERLIN, "osm-offices-berlin", force=force)
     return data.get("elements", [])
 

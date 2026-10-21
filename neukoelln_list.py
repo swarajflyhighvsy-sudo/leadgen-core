@@ -1,5 +1,5 @@
 """
-Neukoelln small-business list for local AI, IT and automation offers (life-os.md §4, task 4).
+Small-business list for local website and automation offers, one district at a time.
 
 One Overpass read of every named business in Bezirk Neukölln, chains dropped (any brand tag),
 each row tagged with a sector, the offer that fits it, and the gap OSM shows (no website, no
@@ -154,7 +154,7 @@ def main() -> None:
     with out.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
-        # OSM names can carry long dashes; nothing handed to Sj may (CLAUDE.md writing rules).
+        # OSM names can carry long dashes; the CSV is kept dash-free so it pastes cleanly.
         w.writerows({k: safe_cell(v) for k, v in r.items()} for r in rows)
     print(f"elements {len(data.get('elements', []))}, independent businesses {len(rows)}")
     by = {}
